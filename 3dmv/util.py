@@ -49,7 +49,7 @@ def get_sample_files(samples_path):
 
 def get_sample_files_for_scene(scene, samples_path):
     files = [f for f in os.listdir(samples_path) if f.startswith(scene) and f.endswith('.sample')] #and os.path.isfile(join(samples_path, f))]
-    print 'found ', len(files), ' for ', os.path.join(samples_path, scene)
+    print('found ', len(files), ' for ', os.path.join(samples_path, scene))
     return files
 
 

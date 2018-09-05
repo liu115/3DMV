@@ -83,11 +83,12 @@ projection = ProjectionHelper(intrinsic, opt.depth_min, opt.depth_max, proj_imag
 # create loss
 criterion_weights = torch.ones(num_classes) 
 if opt.class_weight_file:
+    # Load loss weights for classes base on the label counts
     criterion_weights = util.read_class_weights_from_file(opt.class_weight_file, num_classes, True)
 for c in range(num_classes):
     if criterion_weights[c] > 0:
         criterion_weights[c] = 1 / np.log(1.2 + criterion_weights[c])
-print criterion_weights.numpy()
+print(criterion_weights.numpy())
 #raw_input('')
 criterion = torch.nn.CrossEntropyLoss(criterion_weights).cuda()
 criterion2d = torch.nn.CrossEntropyLoss(criterion_weights).cuda()
@@ -108,8 +109,8 @@ if opt.use_proxy_loss:
 # data files
 train_files = util.read_lines_from_file(opt.train_data_list)
 val_files = [] if not opt.val_data_list else util.read_lines_from_file(opt.val_data_list)
-print '#train files = ', len(train_files)
-print '#val files = ', len(val_files)
+print('#train files = ', len(train_files))
+print('#val files = ', len(val_files))
 
 _SPLITTER = ','
 confusion = tnt.meter.ConfusionMeter(num_classes)
@@ -134,7 +135,7 @@ def train(epoch, iter, log_file, train_file, log_file_2d):
 
     labels = labels[:, 0, :, grid_centerX, grid_centerY]  # center columns as targets
     num_samples = volumes.shape[0]
-    # shuffle
+    # shuffle, and split them into mini-batches
     indices = torch.randperm(num_samples).long().split(batch_size)
     # remove last mini-batch so that all the batches have equal size
     indices = indices[:-1]
@@ -146,6 +147,7 @@ def train(epoch, iter, log_file, train_file, log_file_2d):
     label_images = torch.cuda.LongTensor(batch_size * num_images, proj_image_dims[1], proj_image_dims[0])
 
     for t,v in enumerate(indices):
+        # v is the indices of a mini-batch
         targets = torch.autograd.Variable(labels[v].cuda())
         # valid targets
         mask = targets.view(-1).data.clone()
@@ -155,16 +157,16 @@ def train(epoch, iter, log_file, train_file, log_file_2d):
         maskindices = mask.nonzero().squeeze()
         if len(maskindices.shape) == 0:
             continue
-        transforms = world_to_grids[v].unsqueeze(1)
+        transforms = world_to_grids[v].unsqueeze(1) # shape: (batch_size, 4, 4, 1)
         transforms = transforms.expand(batch_size, num_images, 4, 4).contiguous().view(-1, 4, 4).cuda()
         data_util.load_frames_multi(opt.data_path_2d, frames[v], depth_images, color_images, camera_poses, color_mean, color_std)
 
         # compute projection mapping
         proj_mapping = [projection.compute_projection(d, c, t) for d, c, t in zip(depth_images, camera_poses, transforms)]
         if None in proj_mapping: #invalid sample
-            #print '(invalid sample)'
+            #print('(invalid sample)')
             continue
-        proj_mapping = zip(*proj_mapping)
+        proj_mapping = list(zip(*proj_mapping))
         proj_ind_3d = torch.stack(proj_mapping[0])
         proj_ind_2d = torch.stack(proj_mapping[1])
 
@@ -213,7 +215,8 @@ def train(epoch, iter, log_file, train_file, log_file_2d):
 
         # confusion
         y = output.data
-        y = y.view(y.nelement()/y.size(2), num_classes)[:, :-1]
+        # print(y)
+        y = y.view(y.nelement() // y.size(2), num_classes)[:, :-1]
         _, predictions = y.max(1)
         predictions = predictions.view(-1)
         k = targets.data.view(-1)
@@ -296,9 +299,9 @@ def test(epoch, iter, log_file, val_file, log_file_2d):
             # compute projection mapping
             proj_mapping = [projection.compute_projection(d, c, t) for d, c, t in zip(depth_images, camera_poses, transforms)]
             if None in proj_mapping: #invalid sample
-                #print '(invalid sample)'
+                #print('(invalid sample)')
                 continue
-            proj_mapping = zip(*proj_mapping)
+            proj_mapping = list(zip(*proj_mapping))
             proj_ind_3d = torch.stack(proj_mapping[0])
             proj_ind_2d = torch.stack(proj_mapping[1])
             # 2d
@@ -379,7 +382,7 @@ def main():
             log_file_2d_val.write(_SPLITTER.join(['epoch','iter','loss','avg acc', 'instance acc', 'time']) + '\n')
             log_file_2d_val.flush()
     # start training
-    print 'starting training...'
+    print('starting training...')
     iter = 0
     num_files_per_val = 10
     for epoch in range(opt.max_epoch):
