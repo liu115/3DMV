@@ -181,7 +181,7 @@ def train(epoch, iter, log_file, train_file, log_file_2d):
                 continue  # nothing to optimize for here
         # 2d
         imageft_fixed = model2d_fixed(torch.autograd.Variable(color_images))
-        imageft = model2d_trainable(imageft_fixed)
+        imageft = model2d_trainable(imageft_fixed)  # Output image feature
         if opt.use_proxy_loss:
             ft2d = model2d_classifier(imageft)
             ft2d = ft2d.permute(0, 2, 3, 1).contiguous()
@@ -343,7 +343,10 @@ def test(epoch, iter, log_file, val_file, log_file_2d):
 
 
 def evaluate_confusion(confusion_matrix, loss, epoch, iter, time, which, log_file):
-    conf = confusion_matrix.value()
+    '''
+    confusion_matrix: a torchnet meter ConfusionMeter
+    '''
+    conf = confusion_matrix.value()  # return average precision for each class, shape: (1, K)
     total_correct = 0
     valids = np.zeros(num_classes, dtype=np.float32)
     for c in range(num_classes):

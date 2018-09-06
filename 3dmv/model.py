@@ -88,13 +88,20 @@ class Model2d3d(nn.Module):
             nn.Dropout3d(0.2)
         )
         self.classifier = nn.Sequential(
-            nn.Linear(self.nf2 * 54, self.bf),
+            nn.Linear(self.nf2 * 54, self.bf), # 54 = 6*3*3 (the last output size of conv)
             nn.ReLU(True),
             nn.Dropout(0.5),
             nn.Linear(self.bf, num_classes*column_height)
         )
 
     def forward(self, volume, image_features, projection_indices_3d, projection_indices_2d, volume_dims):
+        '''
+        volume:                 3D subvolume voxel data,
+        image_features:         2D image feature from 2d network
+        projection_indices_3d:  
+        projection_indices_2d:
+        volume_dims:            3D subvolume size
+        '''
         assert len(volume.shape) == 5 and len(image_features.shape) == 4
         batch_size = volume.shape[0]
         num_images = projection_indices_3d.shape[0] // batch_size
@@ -113,11 +120,13 @@ class Model2d3d(nn.Module):
         image_features = image_features.view(sz[0], sz[1], sz[2], sz[3], batch_size)
         image_features = image_features.permute(4, 0, 1, 2, 3)
 
+        # Forward 3d and 2d features
         volume = self.features3d(volume)
         image_features = self.features2d(image_features)
+        # Concat 3d and 2d features
         x = torch.cat([volume, image_features], 1)
         x = self.features(x)
-        x = x.view(batch_size, self.nf2 * 54)
+        x = x.view(batch_size, self.nf2 * 54) # 54 = 6*3*3 (the last output size of conv)
         x = self.classifier(x)
-        x = x.view(batch_size, self.grid_dims[2], self.num_classes)
+        x = x.view(batch_size, self.grid_dims[2], self.num_classes) # batch, height, class 
         return x
