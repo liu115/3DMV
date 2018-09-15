@@ -11,7 +11,7 @@ from projection import Projection
 # z-y-x coordinates
 class Model3d(nn.Module):
     # def __init__(self, num_classes, num_images, intrinsic, image_dims, grid_dims, depth_min, depth_max, voxel_size):
-    def __init__(self, num_classes, grid_dims):
+    def __init__(self, num_classes, grid_dims, input_channel):
         super(Model3d, self).__init__()
         self.num_classes = num_classes
         # self.num_images = num_images
@@ -21,6 +21,7 @@ class Model3d(nn.Module):
         # self.depth_min = depth_min
         # self.depth_max = depth_max
         # self.voxel_size = voxel_size
+        self.input_channel = input_channel
         self.nf0 = 32 
         self.nf1 = 64 
         self.nf2 = 128 
@@ -53,7 +54,8 @@ class Model3d(nn.Module):
         # )
         self.features3d = nn.Sequential(
             # output self.nf0 x 30x15x15
-            nn.Conv3d(2, self.nf0, kernel_size=[4, 3, 3], stride=2, padding=0),
+            nn.Conv3d(self.input_channel, self.nf0, kernel_size=[
+                      4, 3, 3], stride=2, padding=0),
             nn.BatchNorm3d(self.nf0),
             nn.ReLU(True),
             nn.Conv3d(self.nf0, self.nf0, kernel_size=1, stride=1, padding=0),

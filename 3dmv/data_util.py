@@ -17,15 +17,29 @@ def load_hdf5_data(filename, num_classes):
     with h5py.File(filename, 'r') as f:
         volumes = f['data'][:].astype(np.float32)
         labels = f['label'][:]
-        frames = f['frames'][:]
-        world_to_grids = f['world_to_grid'][:]
+        # frames = f['frames'][:]
+        # world_to_grids = f['world_to_grid'][:]
     labels[np.greater(labels, num_classes - 1)] = num_classes - 1
     volumes = torch.from_numpy(volumes)
     labels = torch.from_numpy(labels.astype(np.int64))
-    frames = torch.from_numpy(frames.astype(np.int32))
-    world_to_grids = torch.from_numpy(world_to_grids)
-    return volumes, labels, frames, world_to_grids
+    # frames = torch.from_numpy(frames.astype(np.int32))
+    # world_to_grids = torch.from_numpy(world_to_grids)
+    return volumes, labels
 
+
+# def load_my_hdf5_data(filename, num_classes):
+#     print(filename)
+#     assert os.path.isfile(filename)
+#     gc.collect()
+
+#     with h5py.File(filename, 'r') as f:
+#         volumes = f['data'][:].astype(np.float32)
+#         labels = f['label'][:]
+#     volumes = np.expand_dims(volumes, )
+#     labels[np.greater(labels, num_classes - 1)] = num_classes - 1
+#     volumes = torch.from_numpy(volumes)
+#     labels = torch.from_numpy(labels.astype(np.int64))
+#     return volumes, labels
 
 def load_pose(filename):
     pose = torch.Tensor(4, 4)

@@ -10,8 +10,6 @@ import itertools
 import util
 import data_util
 from model import Model3d
-# from enet import create_enet_for_3d
-# from projection import ProjectionHelper
 
 # ENET_TYPES = {'scannet': (41, [0.496342, 0.466664, 0.440796], [0.277856, 0.28623, 0.291129])}  #classes, color mean/std 
 
@@ -37,7 +35,8 @@ parser.add_argument('--start_epoch', type=int, default=0, help='start epoch')
 # parser.add_argument('--model2d_type', default='scannet', help='which enet (scannet)')
 # parser.add_argument('--model2d_path', required=True, help='path to enet model')
 # parser.add_argument('--use_proxy_loss', dest='use_proxy_loss', action='store_true')
-# 2d/3d 
+# 2d/3d
+parser.add_argument('--selected_input_channel', nargs='+', type=int, required=True)
 parser.add_argument('--voxel_size', type=float, default=0.05, help='voxel size (in meters)')
 parser.add_argument('--grid_dimX', type=int, default=31, help='3d grid dim x')
 parser.add_argument('--grid_dimY', type=int, default=31, help='3d grid dim y')
@@ -68,7 +67,7 @@ grid_centerY = opt.grid_dimY // 2
 
 # create model
 num_classes = opt.num_classes
-model = Model3d(num_classes, grid_dims)
+model = Model3d(num_classes, grid_dims, len(opt.selected_input_channel))
 
 # create loss
 criterion_weights = torch.ones(num_classes) 
@@ -110,13 +109,18 @@ def train(epoch, iter, log_file, train_file):
     # if opt.use_proxy_loss:
     #     model2d_classifier.train()
 
-    volumes, labels, frames, world_to_grids = data_util.load_hdf5_data(train_file, num_classes)
-    # frames = frames[:, :2+num_images]
+    volumes, labels = data_util.load_hdf5_data(train_file, num_classes)
+
     volumes = volumes.permute(0, 1, 4, 3, 2) # => Z, X, Y
     labels = labels.permute(0, 1, 4, 3, 2)
 
     labels = labels[:, 0, :, grid_centerX, grid_centerY]  # center columns as targets
     num_samples = volumes.shape[0]
+
+    # Mask volume channels
+    selected_input_channel = np.array(opt.selected_input_channel)
+    volumes = volumes[:, selected_input_channel, :, :, :]
+
     # shuffle, and split them into mini-batches
     indices = torch.randperm(num_samples).long().split(batch_size)
     # remove last mini-batch so that all the batches have equal size
@@ -177,11 +181,16 @@ def test(epoch, iter, log_file, val_file):
     model.eval()
     start = time.time()
 
-    volumes, labels, frames, world_to_grids = data_util.load_hdf5_data(val_file, num_classes)
+    volumes, labels = data_util.load_hdf5_data(val_file, num_classes)
     volumes = volumes.permute(0, 1, 4, 3, 2)
     labels = labels.permute(0, 1, 4, 3, 2)
     labels = labels[:, 0, :, grid_centerX, grid_centerY]  # center columns as targets
     num_samples = volumes.shape[0]
+
+    # Mask volume channels
+    selected_input_channel = np.array(opt.selected_input_channel)
+    volumes = volumes[:, selected_input_channel, :, :, :]
+
     # shuffle
     indices = torch.randperm(num_samples).long().split(batch_size)
     # remove last mini-batch so that all the batches have equal size
