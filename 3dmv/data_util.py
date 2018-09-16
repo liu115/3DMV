@@ -72,35 +72,50 @@ def load_depth_label_pose(depth_file, color_file, pose_file, depth_image_dims, c
     color_image = normalize(torch.Tensor(color_image.astype(np.float32) / 255.0))
     return depth_image, color_image, pose
 
-
 def load_scene(filename, num_classes, load_gt):
-    assert os.path.isfile(filename)
-    fin = open(filename, 'rb')
-    # read header
-    width = struct.unpack('<I', fin.read(4))[0]
-    height = struct.unpack('<I', fin.read(4))[0]
-    depth = struct.unpack('<I', fin.read(4))[0]
-    voxelsize = struct.unpack('f', fin.read(4))[0]
 
-    numElems = width * height * depth
-    sdfs = struct.unpack('f'*numElems, fin.read(numElems*4))  #grid3<float>
-    labels = None
-    if load_gt:
-        labels = struct.unpack('B'*numElems, fin.read(numElems))  #grid3<uchar>
-    fin.close()
-    sdfs = np.asarray(sdfs, dtype=np.float32).reshape([depth, height, width])
-    if load_gt:
-        labels = np.asarray(labels, dtype=np.uint8).reshape([depth, height, width])
-    occ = np.ndarray((2, depth, height, width), np.dtype('B')) #occupancy grid for occupied/empty space, known/unknown space
-    occ[0] = np.less_equal(np.abs(sdfs), 1)
-    occ[1] = np.greater_equal(sdfs, -1)
-    if load_gt:
-        # ensure occupied space has non-zero labels
-        labels[np.logical_and(np.equal(occ[0], 1), np.equal(labels, 0))] = num_classes - 1
-        # ensure non-occupied space has zero labels
-        labels[np.equal(occ[0], 0)] = 0
-        labels[np.greater_equal(labels, num_classes)] = num_classes - 1
-    return occ, labels
+    with h5py.File(filename, 'r') as f:
+        data = f['data'][:]
+        data = np.transpose(data, (0, 3, 1, 2)) # C, Z, X, Y
+        if load_gt:
+            labels = f['label'][:]
+            labels = np.transpose(labels, (0, 3, 1, 2)) # C, Z, X, Y
+        else:
+            labels = None
+        
+    return data, labels
+
+        
+
+
+# def load_scene(filename, num_classes, load_gt):
+#     assert os.path.isfile(filename)
+#     fin = open(filename, 'rb')
+#     # read header
+#     width = struct.unpack('<I', fin.read(4))[0]
+#     height = struct.unpack('<I', fin.read(4))[0]
+#     depth = struct.unpack('<I', fin.read(4))[0]
+#     voxelsize = struct.unpack('f', fin.read(4))[0]
+
+#     numElems = width * height * depth
+#     sdfs = struct.unpack('f'*numElems, fin.read(numElems*4))  #grid3<float>
+#     labels = None
+#     if load_gt:
+#         labels = struct.unpack('B'*numElems, fin.read(numElems))  #grid3<uchar>
+#     fin.close()
+#     sdfs = np.asarray(sdfs, dtype=np.float32).reshape([depth, height, width])
+#     if load_gt:
+#         labels = np.asarray(labels, dtype=np.uint8).reshape([depth, height, width])
+#     occ = np.ndarray((2, depth, height, width), np.dtype('B')) #occupancy grid for occupied/empty space, known/unknown space
+#     occ[0] = np.less_equal(np.abs(sdfs), 1)
+#     occ[1] = np.greater_equal(sdfs, -1)
+#     if load_gt:
+#         # ensure occupied space has non-zero labels
+#         labels[np.logical_and(np.equal(occ[0], 1), np.equal(labels, 0))] = num_classes - 1
+#         # ensure non-occupied space has zero labels
+#         labels[np.equal(occ[0], 0)] = 0
+#         labels[np.greater_equal(labels, num_classes)] = num_classes - 1
+#     return occ, labels
 
 
 def load_label_frame(label_file, image_dims, num_classes):
