@@ -116,7 +116,14 @@ def evaluate_prediction(scene_occ, scene_label, output):
             class_num_occ[c] = np.count_nonzero(mask)
             num_wrong = np.count_nonzero(scene_label.astype(np.int32)[mask] - output.astype(np.int32)[mask])
             class_num_correct[c] = class_num_occ[c] - num_wrong
-        class_num_union[c] = np.count_nonzero(np.logical_or(mask, np.logical_and(np.not_equal(scene_label, num_classes-1), np.equal(output, c))))
+            
+            legal_ann = np.logical_and(np.not_equal(scene_label, num_classes-1), np.not_equal(scene_label, 0))
+            tp = np.logical_and(np.equal(output, c), np.equal(scene_label, c))
+            fp = np.logical_and(np.equal(output, c), np.logical_and(legal_ann, np.not_equal(scene_label, c)))
+            fn = np.logical_and(np.not_equal(output, c), np.equal(scene_label, c))
+
+            assert tp.astype(int).sum() == class_num_correct[c]
+            class_num_union[c] = (tp.astype(int).sum() + fp.astype(int).sum() + fn.astype(int).sum())
 
     print('instance acc = ', float(inst_num_correct)/float(inst_num_occ))
     class_acc = np.divide(class_num_correct, class_num_occ)
