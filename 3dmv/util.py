@@ -5,12 +5,13 @@ import torch
 
 # util for saving tensors, for debug purposes
 def write_array_to_file(tensor, filename):
-    sz = tensor.shape
-    with open(filename, 'wb') as f:
-        f.write(struct.pack('Q', sz[0]))
-        f.write(struct.pack('Q', sz[1]))
-        f.write(struct.pack('Q', sz[2]))
-        tensor.tofile(f)
+    np.save(filename, tensor)
+    # sz = tensor.shape
+    # with open(filename, 'wb') as f:
+    #     f.write(struct.pack('Q', sz[0]))
+    #     f.write(struct.pack('Q', sz[1]))
+    #     f.write(struct.pack('Q', sz[2]))
+    #     tensor.tofile(f)
 
 
 def read_lines_from_file(filename):

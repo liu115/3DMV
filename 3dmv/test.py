@@ -71,6 +71,7 @@ grid_padY = opt.grid_dimY // 2
 #TODO READ THIS FROM FILE INSTEAD OF HARDCODING
 print('warning: using hard-coded scannet label set')
 valid_classes = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 16, 24, 28, 33, 34, 36, 39]
+gt_class_dict = np.array([0] + valid_classes)
 
 # create model
 num_classes = opt.num_classes
@@ -96,7 +97,10 @@ def evaluate_prediction(scene_occ, scene_label, output):
     print(scene_occ.shape, scene_label.shape, output.shape)
     mask = np.equal(scene_occ[0], 1)
     output[np.logical_not(mask)] = 0
+
+    # Inst_acc should mask out label == 0
     mask = np.logical_and(mask, np.not_equal(scene_label, num_classes-1))
+    mask = np.logical_and(mask, np.not_equal(scene_label, 0))
     num_wrong = np.count_nonzero(scene_label.astype(np.int32)[mask] - output.astype(np.int32)[mask])
     inst_num_occ = np.count_nonzero(mask)
     inst_num_correct = inst_num_occ - num_wrong
@@ -132,12 +136,26 @@ def test(scene_name, eval_file):
         raise
 
     scene_occ, scene_label = data_util.load_scene(scene_file, num_classes, opt.has_gt)
+    
+    # Padding X-Y
+    padSize = ((0, 0), (0, 0), (grid_padX, grid_padX), (grid_padY, grid_padY))
+    scene_occ = np.pad(scene_occ, padSize, 'constant', constant_values=0)
+    if opt.has_gt:
+        padSize = ((0, 0), (grid_padX, grid_padX), (grid_padY, grid_padY))
+        scene_label = np.pad(scene_label, padSize, 'constant', constant_values=0)
+
+    # Trim height (Z-dim)
     if scene_occ.shape[1] > column_height:
         scene_occ = scene_occ[:, :column_height, :, :]
         if opt.has_gt:
             scene_label = scene_label[:column_height, :, :]
     scene_occ_sz = scene_occ.shape[1:]
     
+    # transform label from 0-20 to 0-40
+    if opt.has_gt:
+        scene_label = gt_class_dict[scene_label]
+        print(scene_label.shape)
+
     # Mask volume channels
     selected_input_channel = np.array(opt.selected_input_channel)
     scene_occ = scene_occ[selected_input_channel, :, :, :]
@@ -186,7 +204,7 @@ def test(scene_name, eval_file):
     pred_label = np.argmax(output_probs, axis=0)
     mask = np.equal(scene_occ[0], 1)
     pred_label[np.logical_not(mask)] = 0
-    util.write_array_to_file(pred_label.astype(np.uint8), os.path.join(opt.output_path, scene_name + '.bin'))
+    util.write_array_to_file(pred_label.astype(np.uint8), os.path.join(opt.output_path, scene_name + '.npy'))
     eval_scene = None
     if opt.has_gt:
         eval_scene = evaluate_prediction(scene_occ, scene_label, pred_label)
