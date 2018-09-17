@@ -80,6 +80,7 @@ def load_scene(filename, num_classes, load_gt):
         if load_gt:
             labels = f['label'][:]
             labels = np.transpose(labels, (0, 3, 1, 2)) # C, Z, X, Y
+            labels = np.squeeze(labels, axis=0)
         else:
             labels = None
         

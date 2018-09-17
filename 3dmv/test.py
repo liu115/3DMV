@@ -27,7 +27,7 @@ parser.add_argument('--gpu', type=int, default=0, help='which gpu to use')
 # parser.add_argument('--num_nearest_images', type=int, required=True, help='#images')
 parser.add_argument('--model2d_type', default='scannet', help='which enet (scannet)')
 #parser.add_argument('--test_2d_model', dest='test_2d_model', action='store_true')
-parser.add_argument('--model2d_orig_path', required=True, help='path to model')
+# parser.add_argument('--model2d_orig_path', required=True, help='path to model')
 # 2d/3d 
 parser.add_argument('--selected_input_channel',
                     nargs='+', type=int, required=True)
@@ -93,6 +93,7 @@ else:
 
 _SPLITTER = ','
 def evaluate_prediction(scene_occ, scene_label, output):
+    print(scene_occ.shape, scene_label.shape, output.shape)
     mask = np.equal(scene_occ[0], 1)
     output[np.logical_not(mask)] = 0
     mask = np.logical_and(mask, np.not_equal(scene_label, num_classes-1))
