@@ -9,7 +9,8 @@ import torchvision.transforms as transforms
 import util
 import gc
 
-def load_hdf5_data(filename, num_classes):
+
+def load_hdf5_data(filename, num_classes, selected_input_channel=None):
     print(filename)
     assert os.path.isfile(filename)
     gc.collect()
@@ -21,6 +22,9 @@ def load_hdf5_data(filename, num_classes):
         # world_to_grids = f['world_to_grid'][:]
         if volumes.shape[1] >= 4:
             volumes[:, 1:4, :, :, :] = volumes[:, 1:4, :, :, :] / 127.5 - 1
+        
+        if selected_input_channel:
+            volumes = volumes[:, selected_input_channel, :, :, :]
 
 
     labels[np.greater(labels, num_classes - 1)] = num_classes - 1
