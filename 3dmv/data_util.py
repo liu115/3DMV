@@ -19,6 +19,10 @@ def load_hdf5_data(filename, num_classes):
         labels = f['label'][:]
         # frames = f['frames'][:]
         # world_to_grids = f['world_to_grid'][:]
+        if volumes.shape[1] >= 4:
+            volumes[:, 1:4, :, :, :] = volumes[:, 1:4, :, :, :] / 127.5 - 1
+
+
     labels[np.greater(labels, num_classes - 1)] = num_classes - 1
     volumes = torch.from_numpy(volumes)
     labels = torch.from_numpy(labels.astype(np.int64))
@@ -76,7 +80,11 @@ def load_scene(filename, num_classes, load_gt):
 
     with h5py.File(filename, 'r') as f:
         data = f['data'][:]
-        data = np.transpose(data, (0, 3, 1, 2)) # C, Z, X, Y
+        data = np.transpose(data, (0, 3, 1, 2)) # C, Z, X, Yi
+        
+        if data.shape[0] >= 4:
+            data[1:4, :, :, :] = data[1:4, :, :, :] / 127.5 - 1
+
         if load_gt:
             labels = f['label'][:]
             labels = np.transpose(labels, (0, 3, 1, 2)) # C, Z, X, Y

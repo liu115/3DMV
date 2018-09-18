@@ -68,6 +68,7 @@ grid_centerY = opt.grid_dimY // 2
 # create model
 num_classes = opt.num_classes
 model = Model3d(num_classes, grid_dims, len(opt.selected_input_channel))
+print(model)
 
 # create loss
 criterion_weights = torch.ones(num_classes) 
