@@ -15,6 +15,7 @@ from model import Model3d
 # params
 parser = argparse.ArgumentParser()
 # data paths
+parser.add_argument('--batch_size', type=int, required=True, help='batch size when testing')
 parser.add_argument('--scene_list', required=True, help='path to file list of scenes to test')
 parser.add_argument('--model_path', required=True, help='path to model')
 # parser.add_argument('--data_path_2d', required=True, help='path to 2d data')
@@ -169,41 +170,32 @@ def test(scene_name, eval_file):
 
     # B , C , Z , X , Y
     input_occ = torch.cuda.FloatTensor(
-        1, len(opt.selected_input_channel), grid_dims[2], grid_dims[1], grid_dims[0])
+        opt.batch_size, len(opt.selected_input_channel), grid_dims[2], grid_dims[1], grid_dims[0])
     output_probs = np.zeros([num_classes, scene_occ_sz[0], scene_occ_sz[1], scene_occ_sz[2]])
 
     # go thru all columns
     for y in range(grid_padY, scene_occ_sz[1] - grid_padY):
-        for x in range(grid_padX, scene_occ_sz[2] - grid_padX):
-            input_occ.fill_(0)
-            input_occ[0, :, :scene_occ_sz[0], :, :] = torch.from_numpy(
-                scene_occ[:, :, y-grid_padY:y+grid_padY+1, x-grid_padX:x+grid_padX+1]
-            )
-            
-            
-            # cur_frame_ids = frame_ids[:, y, x][np.greater_equal(frame_ids[:, y, x], 0)]
-            # if len(cur_frame_ids) < num_images or torch.sum(input_occ[0, 0, :,grid_padY,grid_padX]) == 0:
-            #     continue
-            # for k in range(num_images):
-            #     depth_image[k] = depth_images[cur_frame_ids[k]]
-            #     color_image[k] = color_images[cur_frame_ids[k]]
-            #     pose[k] = poses[cur_frame_ids[k]]
-            #     world_to_grid[k] = torch.from_numpy(world_to_grids[y, x])
 
-            # proj_mapping = [projection.compute_projection(d, c, t) for d, c, t in zip(depth_image, pose, world_to_grid)]
-            # if None in proj_mapping: #invalid sample
-                #print('(invalid sample)')
-                # continue
-            # proj_mapping = list(zip(*proj_mapping))
-            # proj_ind_3d = torch.stack(proj_mapping[0])
-            # proj_ind_2d = torch.stack(proj_mapping[1])
-            # imageft_fixed = model2d_fixed(torch.autograd.Variable(color_image))
-            # imageft = model2d_trainable(imageft_fixed)
+        x_len = scene_occ_sz[2] - grid_padX
+        for x in range(grid_padX, x_len, opt.batch_size):
+            input_occ.fill_(0)
+
+            for i in range(opt.batch_size):
+                if x + i >= x_len:
+                    break
+                input_occ[i, :, :scene_occ_sz[0], :, :] = torch.from_numpy(
+                    scene_occ[:, :, y-grid_padY:y+grid_padY+1, (x+i)-grid_padX:(x+i)+grid_padX+1]
+                )
+            
             input3d = torch.autograd.Variable(input_occ)
             out = model(input3d)
             # out = model(torch.autograd.Variable(input_occ), imageft, torch.autograd.Variable(proj_ind_3d), torch.autograd.Variable(proj_ind_2d), grid_dims)
-            output = out.data[0].permute(1, 0)
-            output_probs[:, :, y, x] = output[:, :scene_occ_sz[0]]
+            
+            for i in range(opt.batch_size):
+                if x + i >= x_len:
+                    break
+                output = out.data[i].permute(1, 0)
+                output_probs[:, :, y, x+i] = output[:, :scene_occ_sz[0]]
         sys.stdout.write('\r[ %d | %d ]' % (y + 1, scene_occ_sz[1] - grid_padY))
         sys.stdout.flush()
     sys.stdout.write('\n')
@@ -240,7 +232,8 @@ def main():
     class_total_correct = np.zeros(num_classes)
     class_total_occ = np.zeros(num_classes)
     class_total_union = np.zeros(num_classes)
-    for scene in scenes:
+    for i, scene in enumerate(scenes):
+        print('{} / {}'.format(i, len(scenes)))
         stats = test(scene, eval_file)
         if opt.has_gt:
             inst_total_correct += stats['instance_num_correct']
