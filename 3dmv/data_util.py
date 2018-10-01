@@ -24,6 +24,7 @@ def load_hdf5_data(filename, num_classes, selected_input_channel=None):
             volumes[:, 1:4, :, :, :] = volumes[:, 1:4, :, :, :] / 127.5 - 1
         
         if selected_input_channel:
+            selected_input_channel = np.array(selected_input_channel)
             volumes = volumes[:, selected_input_channel, :, :, :]
 
 

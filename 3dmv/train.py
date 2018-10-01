@@ -112,7 +112,7 @@ def train(epoch, iter, log_file, train_file):
 
 
     # Mask volume channels
-    selected_input_channel = np.array(opt.selected_input_channel)
+    selected_input_channel = opt.selected_input_channel
     volumes, labels = data_util.load_hdf5_data(train_file, num_classes, selected_input_channel)
 
     volumes = volumes.permute(0, 1, 4, 3, 2) # => Z, X, Y
@@ -181,17 +181,13 @@ def test(epoch, iter, log_file, val_file):
     model.eval()
     start = time.time()
 
-    selected_input_channel = np.array(opt.selected_input_channel)
+    selected_input_channel = opt.selected_input_channel
     volumes, labels = data_util.load_hdf5_data(val_file, num_classes, selected_input_channel)
     
     volumes = volumes.permute(0, 1, 4, 3, 2)
     labels = labels.permute(0, 1, 4, 3, 2)
     labels = labels[:, 0, :, grid_centerX, grid_centerY]  # center columns as targets
     num_samples = volumes.shape[0]
-
-    # Mask volume channels
-    selected_input_channel = np.array(opt.selected_input_channel)
-    volumes = volumes[:, selected_input_channel, :, :, :]
 
     # shuffle
     indices = torch.randperm(num_samples).long().split(batch_size)
