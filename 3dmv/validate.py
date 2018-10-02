@@ -99,7 +99,8 @@ print('#val files = ', len(val_files))
 _SPLITTER = ','
 confusion_val = tnt.meter.ConfusionMeter(num_classes)
 
-def test(epoch, iter, log_file, val_file):
+
+def test(epoch, iter, log_file, val_file, model_name):
     test_loss = []
     model.eval()
     start = time.time()
@@ -147,11 +148,11 @@ def test(epoch, iter, log_file, val_file):
 
     end = time.time()
     took = end - start
-    evaluate_confusion(confusion_val, test_loss, epoch, iter, took, 'Test', log_file)
+    # evaluate_confusion(confusion_val, test_loss, epoch, iter, took, 'Test', log_file, model_name)
     return test_loss
 
 
-def evaluate_confusion(confusion_matrix, loss, epoch, iter, time, which, log_file):
+def evaluate_confusion(confusion_matrix, loss, epoch, iter, time, which, log_file, model_name):
     '''
     confusion_matrix: a torchnet meter ConfusionMeter
     '''
@@ -164,11 +165,11 @@ def evaluate_confusion(confusion_matrix, loss, epoch, iter, time, which, log_fil
         total_correct += conf[c][c]
     instance_acc = -1 if conf.sum() == 0 else float(total_correct) / float(conf.sum())
     avg_acc = -1 if np.all(np.equal(valids, -1)) else np.mean(valids[np.not_equal(valids, -1)])
-    log_file.write(_SPLITTER.join([str(f) for f in [epoch, iter, torch.mean(torch.Tensor(loss)), avg_acc, instance_acc, time]]) + '\n')
+    log_file.write(_SPLITTER.join([str(f) for f in [epoch, iter, torch.mean(torch.Tensor(loss)).item(), avg_acc, instance_acc, time]]) + '\n')
     log_file.flush()
 
     print('{} Epoch: {}\tIter: {}\tLoss: {:.6f}\tAcc(inst): {:.6f}\tAcc(avg): {:.6f}\tTook: {:.2f}'.format(
-        which, epoch, iter, torch.mean(torch.Tensor(loss)).item(), instance_acc, avg_acc, time))
+        model_name, epoch, iter, torch.mean(torch.Tensor(loss)).item(), instance_acc, avg_acc, time))
 
 
 def main():
@@ -181,16 +182,17 @@ def main():
         log_file_val.write(_SPLITTER.join(['epoch', 'iter', 'loss','avg acc', 'instance acc', 'time']) + '\n')
         log_file_val.flush()
 
-    for model_path in glob.glob(os.path.join(opt.model_dir, 'model-epoch-*.pth')):
+    for model_path in glob.glob(os.path.join(opt.model_dir, 'model-epoch-1?.pth')):
+        print('Loading {}'.format(model_path))
         model.load_state_dict(torch.load(model_path))
 
         val_loss = []
         start_time = time.time()
         for val_file in val_files:
-            loss = test(0, 0, log_file_val, val_file)
+            loss = test(0, 0, log_file_val, val_file, model_path)
             val_loss.extend(loss)
         took = time.time() - start_time
-        evaluate_confusion(confusion_val, val_loss, 0, 0, took, model_path, log_file_val)
+        evaluate_confusion(confusion_val, val_loss, 0, 0, took, model_path, log_file_val, model_path)
         confusion_val.reset()
     log_file_val.close()
 
