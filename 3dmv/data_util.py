@@ -15,6 +15,7 @@ def load_hdf5_data(filename, num_classes, selected_input_channel=None):
     assert os.path.isfile(filename)
     gc.collect()
 
+    gt_class_dict = np.array([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 16, 24, 28, 33, 34, 36, 39])
     with h5py.File(filename, 'r') as f:
         volumes = f['data'][:].astype(np.float32)
         labels = f['label'][:]
@@ -27,8 +28,10 @@ def load_hdf5_data(filename, num_classes, selected_input_channel=None):
             selected_input_channel = np.array(selected_input_channel)
             volumes = volumes[:, selected_input_channel, :, :, :]
 
-
     labels[np.greater(labels, num_classes - 1)] = num_classes - 1
+    # Map the class label back
+    labels = gt_class_dict[labels]
+
     volumes = torch.from_numpy(volumes)
     labels = torch.from_numpy(labels.astype(np.int64))
     # frames = torch.from_numpy(frames.astype(np.int32))
